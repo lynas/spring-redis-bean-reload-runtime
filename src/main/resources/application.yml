@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: redis-cache-demo
+server:
+  port: 4455
+
+app:
+  redis:
+    host-name: localhost
+    port: 4005
+    password: ""
