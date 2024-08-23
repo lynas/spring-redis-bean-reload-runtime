@@ -22,6 +22,8 @@ import java.time.Duration
 import org.springframework.cache.annotation.EnableCaching
 import org.springframework.cache.support.NoOpCacheManager
 import org.springframework.cloud.context.config.annotation.RefreshScope
+import org.springframework.core.env.ConfigurableEnvironment
+import org.springframework.core.env.MapPropertySource
 import org.springframework.data.redis.connection.jedis.JedisConnection
 import org.springframework.stereotype.Component
 
@@ -30,7 +32,7 @@ import org.springframework.stereotype.Component
 @Component
 
 class RedisConfiguration(
-    val redisConfig: RedisConfig
+    val redisConfig: RedisConfig,
 ) {
 
     companion object {
@@ -56,44 +58,17 @@ class RedisConfiguration(
                 .serializeValuesWith(
                     RedisSerializationContext.SerializationPair.fromSerializer(redisTemplate.valueSerializer)
                 )
-            if (jedisConnectionFactory.connection is JedisConnection) {
-                println(jedisConnectionFactory.convertPipelineAndTxResults)
-            } else {
-                throw RuntimeException("-")
+            if (jedisConnectionFactory.connection !is JedisConnection) {
+                throw RuntimeException("No connection to redis")
             }
-
             println("[Cache] Redis available, injecting TTL cache: enabled")
             RedisCacheManager
                 .RedisCacheManagerBuilder.fromConnectionFactory(jedisConnectionFactory)
                 .cacheDefaults(redisCacheConfiguration)
                 .build()
         } catch (ex: Exception) {
-            println("[Cache] Redis unavailable, using NoOpCacheManager")
-            NoOpCacheManager() // This manager will do nothing and effectively disable caching
+            NoOpCacheManager()
         }
-    }
-
-
-    @Bean
-    fun redisCacheManagerOnline(
-        jedisConnectionFactory: JedisConnectionFactory,
-        redisTemplate: RedisTemplate<String, Any>
-    ): CacheManager {
-        val redisCacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
-            .disableCachingNullValues()
-            .entryTtl(Duration.ofDays(1))
-            .serializeValuesWith(
-                RedisSerializationContext.SerializationPair.fromSerializer(redisTemplate.valueSerializer)
-            )
-        return RedisCacheManager
-            .RedisCacheManagerBuilder.fromConnectionFactory(jedisConnectionFactory)
-            .cacheDefaults(redisCacheConfiguration)
-            .build()
-    }
-
-    @Bean
-    fun redisCacheManagerOffline(): CacheManager {
-        return NoOpCacheManager()
     }
 
     @Bean
