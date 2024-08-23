@@ -2,6 +2,8 @@ package com.lynas.redis_cache_demo
 
 import com.lynas.redis_cache_demo.RedisConfiguration.Companion.DEMO_INFORMATION_CACHE
 import java.util.Date
+import org.springframework.beans.factory.support.DefaultListableBeanFactory
+import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan
 import org.springframework.boot.runApplication
@@ -14,6 +16,7 @@ import org.springframework.data.redis.connection.jedis.JedisConnectionFactory
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -24,8 +27,10 @@ import org.springframework.web.bind.annotation.RestController
 @EnableCaching
 @ConfigurationPropertiesScan
 @EnableScheduling
-class RedisCacheDemoApplication {
+class RedisCacheDemoApplication
 
+@Component
+class RedisServerConnectionChecker {
     @Scheduled(fixedDelay = 5_000)
     fun refreshCacheManager() {
         val currentCacheManager = springContext.getBean(CacheManager::class.java)
@@ -38,6 +43,16 @@ class RedisCacheDemoApplication {
         println("currentCacheManagerStr = $currentCacheManagerStr , newCacheManagerStr = $newCacheManagerStr")
         if (currentCacheManagerStr != newCacheManagerStr) {
             restartApplication()
+        }
+    }
+
+    // May or may not reload bean but after reloading it does not reflect to the places where it was used
+    fun reloadCacheManageBean(springContext: ConfigurableApplicationContext, newCacheManager: CacheManager) {
+        val beanFactory = springContext.beanFactory as DefaultListableBeanFactory
+        if (beanFactory.containsSingleton("cacheManager")) {
+            val registry = springContext.autowireCapableBeanFactory as DefaultSingletonBeanRegistry
+            registry.destroySingleton("cacheManager");
+            registry.registerSingleton("cacheManager", newCacheManager);
         }
     }
 
